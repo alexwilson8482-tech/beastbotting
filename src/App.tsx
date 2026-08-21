@@ -623,42 +623,21 @@ export default function App() {
         apis={apis}
         bundles={bundles}
         onAddBundle={(bundle) => {
-          const next: Bundle[] = [
-            ...bundles,
-            {
-              id: `bundle-${Date.now()}`,
-              apiId: bundle.apiId,
-              name: bundle.name,
-              serviceIds: {
-                views: bundle.views,
-                likes: bundle.likes,
-                shares: bundle.shares,
-                saves: bundle.saves,
-                comments: bundle.comments,
-                reposts: bundle.reposts,
-              },
-            },
-          ];
+          const next: Bundle[] = [...bundles, {
+            id: `bundle-${Date.now()}`,
+            name: bundle.name,
+            rotations: bundle.rotations,
+            serviceIds: { views: bundle.rotations.views[0]?.serviceId || "", likes: bundle.rotations.likes[0]?.serviceId || "", shares: bundle.rotations.shares[0]?.serviceId || "", saves: bundle.rotations.saves[0]?.serviceId || "", comments: bundle.rotations.comments[0]?.serviceId || "", reposts: bundle.rotations.reposts[0]?.serviceId || "" },
+          }];
           persistBundles(next);
         }}
         onUpdateBundle={(id, bundle) => {
-          const next: Bundle[] = bundles.map((item) =>
-            item.id === id
-              ? {
-                  ...item,
-                  apiId: bundle.apiId,
-                  name: bundle.name,
-                  serviceIds: {
-                    views: bundle.views,
-                    likes: bundle.likes,
-                    shares: bundle.shares,
-                    saves: bundle.saves,
-                    comments: bundle.comments,
-                    reposts: bundle.reposts,
-                  },
-                }
-              : item
-          );
+          const next: Bundle[] = bundles.map((item) => item.id === id ? {
+            ...item,
+            name: bundle.name,
+            rotations: bundle.rotations,
+            serviceIds: { views: bundle.rotations.views[0]?.serviceId || "", likes: bundle.rotations.likes[0]?.serviceId || "", shares: bundle.rotations.shares[0]?.serviceId || "", saves: bundle.rotations.saves[0]?.serviceId || "", comments: bundle.rotations.comments[0]?.serviceId || "", reposts: bundle.rotations.reposts[0]?.serviceId || "" },
+          } : item);
           persistBundles(next);
         }}
         onDeleteBundle={(id) => {
