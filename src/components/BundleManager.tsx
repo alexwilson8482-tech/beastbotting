@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ApiPanel, ApiService, Bundle, BundleServiceSelections, RotatingService, ServiceType } from "../types/order";
 import { Button, Card, Input, EmptyState, StatusPill } from "./ui";
 
@@ -17,7 +17,17 @@ function servicesFor(apis: ApiPanel[], apiId: string, keywords: string[]) {
   return matched.length ? matched : all;
 }
 function ServiceSelect({ options, value, onChange, label, panelName }: { options:ApiService[]; value:string; onChange:(v:string)=>void; label:string; panelName:string }) {
-  return <label className="block space-y-1"><span className="text-xs font-medium text-slate-600">{label}</span><select className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs" value={value} onChange={e=>onChange(e.target.value)}><option value="">Select service</option>{options.map(s=><option key={s.id} value={s.id}>#{s.id} {s.name} ({panelName})</option>)}</select></label>;
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? options.filter(s => s.id.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)) : options;
+  }, [options, search]);
+  const selected = options.find(s => s.id === value);
+  return <div className="relative space-y-1"><span className="text-xs font-medium text-slate-600">{label}</span>
+    <button type="button" className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left text-xs" onClick={() => setOpen(v => !v)}>{selected ? `#${selected.id} ${selected.name}` : "Search and select service ID"}</button>
+    {open && <><div className="fixed inset-0 z-10" onClick={() => { setOpen(false); setSearch(""); }} /><div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl"><div className="border-b bg-slate-50 p-2"><input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Search service ID or name..." className="w-full rounded border border-slate-200 px-2 py-1.5 text-xs" /></div><div className="max-h-56 overflow-y-auto">{filtered.length ? filtered.map(s => <button key={s.id} type="button" className="block w-full px-3 py-2 text-left text-xs hover:bg-indigo-50" onClick={() => { onChange(s.id); setOpen(false); setSearch(""); }}><span className="font-mono text-slate-500">#{s.id}</span> <span>{s.name}</span><span className="ml-1 text-slate-400">({panelName})</span></button>) : <p className="p-3 text-center text-xs text-slate-500">No matching service</p>}</div><p className="border-t bg-slate-50 px-3 py-1.5 text-[10px] text-slate-500">{filtered.length} service{filtered.length === 1 ? "" : "s"} found</p></div></>}
+  </div>;
 }
 function normalize(bundle: Bundle): BundleServiceSelections {
   const out = emptyRotations();
