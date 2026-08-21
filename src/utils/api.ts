@@ -79,6 +79,7 @@ interface RawService {
   name?: string;
   type?: string;
   rate?: string | number;
+  currency?: string;
   min?: string | number;
   max?: string | number;
 }
@@ -140,6 +141,12 @@ export async function fetchServices(apiUrl: string, apiKey: string): Promise<Api
 
   const directRows = Array.isArray(payload) ? payload : [];
   const wrappedServices = payloadObject?.services;
+  const panelCurrency = String(
+    payloadObject?.currency ??
+    payloadObject?.currency_code ??
+    (wrappedServices && typeof wrappedServices === "object" ? (wrappedServices as Record<string, unknown>).currency : "") ??
+    ""
+  ).trim();
   const rows: RawService[] = Array.isArray(wrappedServices)
     ? (wrappedServices as RawService[])
     : wrappedServices && typeof wrappedServices === "object" && Array.isArray((wrappedServices as { data?: unknown[] }).data)
@@ -158,6 +165,7 @@ export async function fetchServices(apiUrl: string, apiKey: string): Promise<Api
         name,
         type: String(service.type ?? "").trim(),
         rate: cleanRateString(service.rate ?? service.price ?? service.cost ?? (service as any).amount ?? (service as any).charge),
+        currency: String(service.currency ?? (service as any).currency_code ?? (service as any).currencyCode ?? panelCurrency).trim(),
         min: toNumber(service.min),
         max: toNumber(service.max),
       } satisfies ApiService;
