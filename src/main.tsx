@@ -4,11 +4,12 @@ import "./index.css";
 import App from "./App.tsx";
 import { LoginPage } from "./pages/LoginPage.tsx";
 import { AdminPage } from "./pages/AdminPage.tsx";
-import { supabase } from "./lib/supabase.ts";
 import { Spinner } from "./components/ui.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 
 const STORAGE_KEY = "truesmm-access-key";
+const LIFETIME_ACCESS_KEY = "truesmm-lifetime-access";
+const BACKEND_URL = ((import.meta.env.VITE_BACKEND_URL as string | undefined)?.trim() || "https://truesmm-backend.onrender.com").replace(/\/$/, "");
 
 function useHash(): string { 
   const [hash, setHash] = useState<string>(
@@ -38,36 +39,12 @@ function Root() {
 
   const checkAuth = async () => {
     try {
-      const savedKey = localStorage.getItem(STORAGE_KEY);
-
-      if (!savedKey || !savedKey.trim()) {
-        setAuthState("unauthenticated");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("access_keys")
-        .select("is_active, expires_at")
-        .eq("key", savedKey)
-        .single();
-
-      if (error || !data || !data.is_active) {
-        localStorage.removeItem(STORAGE_KEY);
-        setAuthState("unauthenticated");
-        return;
-      }
-
-      if (data.expires_at && Date.now() >= new Date(data.expires_at).getTime()) {
-        localStorage.removeItem(STORAGE_KEY);
-        setAuthState("unauthenticated");
-        return;
-      }
-
-      setAuthState("authenticated");
-    } catch (err) {
-      console.error("Auth check failed:", err);
-      const savedKey = localStorage.getItem(STORAGE_KEY);
-      setAuthState(savedKey && savedKey.trim() ? "authenticated" : "unauthenticated");
+      const response = await fetch(`${BACKEND_URL}/api/auth/session`, { credentials: "include" });
+      if (response.ok) setAuthState("authenticated");
+      else setAuthState("unauthenticated");
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      setAuthState("unauthenticated");
     }
   };
 
