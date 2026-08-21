@@ -509,7 +509,7 @@ export function NewOrderPage({
                   type="number"
                   value={minViewsPerRun}
                   onChange={(e) => handleMinViewsChange(Number(e.target.value))}
-                  min={1}
+                  min={100}
                   max={10000}
                   className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 tabular-nums focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none transition"
                 />
