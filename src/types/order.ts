@@ -13,7 +13,7 @@ export interface OrderConfig { postUrl:string; totalViews:number; startDelayHour
 export interface RunStep { run:number; at:Date; minutesFromStart:number; views:number; likes:number; shares:number; saves:number; comments:number; reposts:number; cumulativeViews:number; cumulativeLikes:number; cumulativeShares:number; cumulativeSaves:number; cumulativeComments:number; cumulativeReposts:number; }
 export type PatternRun = RunStep;
 export interface PatternPlan { patternId:number; patternName:string; patternType:PatternType; totalRuns:number; approximateIntervalMin:number; finishTime:Date; estimatedDurationHours:number; risk:"Safe"|"Medium"|"High"|"Risk"; runs:RunStep[]; }
-export interface ApiService { id:string; name:string; type:string; rate:string; min:number; max:number; }
+export interface ApiService { id:string; name:string; type:string; rate:string; currency?:string; min:number; max:number; }
 export interface ApiPanel { id:string; name:string; url:string; key:string; status:"Active"|"Inactive"; services:ApiService[]; lastFetchAt?:string; lastFetchError?:string; }
 
 export type ServiceType = "views"|"likes"|"shares"|"saves"|"comments"|"reposts";
