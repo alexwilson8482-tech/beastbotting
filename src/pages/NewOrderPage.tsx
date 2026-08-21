@@ -4,6 +4,7 @@ import { RunTable } from "../components/RunTable";
 import type {
   ApiPanel,
   Bundle,
+  ServiceType,
   CreatedOrder,
   DeliveryOption,
   EngagementRatios,
@@ -253,10 +254,17 @@ export function NewOrderPage({
 
   const safePlan = useMemo(() => ({ ...plan, runs: plan?.runs || [] }), [plan]);
 
-  const bundleOptions = useMemo(() => {
-    if (!selectedApiId) return bundles;
-    return bundles.filter((bundle) => String(bundle.apiId || "").trim() === String(selectedApiId || "").trim());
-  }, [bundles, selectedApiId]);
+  // Bundles can now contain services from different panels. The panel selector is retained only for old bundles.
+  const bundleOptions = useMemo(() => bundles, [bundles]);
+
+  const bundleSlots = (bundle: Bundle, type: ServiceType) => {
+    const configured = bundle.rotations?.[type];
+    if (configured?.length) return configured.slice(0, 3);
+    const legacy = bundle.serviceIds?.[type];
+    return legacy ? [{ apiId: bundle.apiId || selectedApiId, serviceId: legacy }] : [];
+  };
+
+  const panelForSlot = (slot: { apiId: string; serviceId: string }) => apis.find(a => a.id === slot.apiId);
 
   function isValidUrl(value: string) {
     try {
@@ -325,21 +333,16 @@ export function NewOrderPage({
     const selApi = apis.find(a => String(a.id || "").trim() === String(selectedApiId || "").trim());
     if (!selBundle || !selApi || safePlan.runs.length === 0) return null;
 
-    const findSvc = (targetId?: string | number) => {
-      if (targetId === null || targetId === undefined || targetId === "") return undefined;
-      const t = String(targetId).trim();
-      return selApi.services.find(s => {
-        const sid = String(s.id ?? (s as any).service ?? (s as any).services ?? (s as any).service_id ?? (s as any).serviceId ?? "").trim();
-        return sid === t;
-      });
+    const averageRate = (type: ServiceType) => {
+      const rates = bundleSlots(selBundle, type).map(slot => {
+        const panel = panelForSlot(slot);
+        const service = panel?.services.find(s => String(s.id) === String(slot.serviceId));
+        const raw = service?.rate;
+        const value = Number(String(raw ?? "0").replace(/[^0-9.,]/g, "").replace(",", "."));
+        return Number.isFinite(value) ? value : 0;
+      }).filter(v => v > 0);
+      return rates.length ? rates.reduce((a,b)=>a+b,0) / rates.length : 0;
     };
-
-    const viewsService = findSvc(selBundle.serviceIds.views);
-    const likesService = findSvc(selBundle.serviceIds.likes);
-    const sharesService = findSvc(selBundle.serviceIds.shares);
-    const savesService = findSvc(selBundle.serviceIds.saves);
-    const repostsService = findSvc(selBundle.serviceIds.reposts);
-    const commentsService = findSvc(selBundle.serviceIds.comments);
 
     const totalViewsQty = safePlan.runs.reduce((sum, run) => sum + (run.views || 0), 0);
     const totalLikesQty = safePlan.runs.reduce((sum, run) => sum + (run.likes || 0), 0);
@@ -366,17 +369,17 @@ export function NewOrderPage({
       return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
     };
 
-    const viewsRate = parseRate(viewsService?.rate ?? viewsService?.price ?? viewsService?.cost);
-    const likesRate = parseRate(likesService?.rate ?? likesService?.price ?? likesService?.cost);
-    const sharesRate = parseRate(sharesService?.rate ?? sharesService?.price ?? sharesService?.cost);
-    const savesRate = parseRate(savesService?.rate ?? savesService?.price ?? savesService?.cost);
-    const repostsRate = parseRate(repostsService?.rate ?? repostsService?.price ?? repostsService?.cost);
-    const commentsRate = parseRate(commentsService?.rate ?? commentsService?.price ?? commentsService?.cost);
+    const viewsRate = averageRate("views");
+    const likesRate = averageRate("likes");
+    const sharesRate = averageRate("shares");
+    const savesRate = averageRate("saves");
+    const repostsRate = averageRate("reposts");
+    const commentsRate = averageRate("comments");
 
-    const isSmmsocial = selApi.url.toLowerCase().includes("smmsocialmedia") || selApi.name.toLowerCase().includes("smmsocialmedia");
+    const isSmmsocial = Boolean(selApi && (selApi.url.toLowerCase().includes("smmsocialmedia") || selApi.name.toLowerCase().includes("smmsocialmedia")));
     let rateMultiplier = 1;
     if (!isSmmsocial) {
-      const isYoyo = selApi.url.toLowerCase().includes("yoyomedia") || selApi.name.toLowerCase().includes("yoyomedia");
+      const isYoyo = Boolean(selApi && (selApi.url.toLowerCase().includes("yoyomedia") || selApi.name.toLowerCase().includes("yoyomedia")));
       const checkRate = viewsRate > 0 ? viewsRate : (likesRate > 0 ? likesRate : (sharesRate > 0 ? sharesRate : 0));
       if (isYoyo || (checkRate > 0 && checkRate < 1.0)) {
         rateMultiplier = 84;
@@ -562,7 +565,7 @@ export function NewOrderPage({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">API panel</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Default API panel (legacy bundles)</label>
                 <select
                   value={selectedApiId}
                   onChange={(e) => { setSelectedApiId(e.target.value); setSelectedBundleId(""); }}
@@ -888,85 +891,49 @@ export function NewOrderPage({
                 if (invalidTarget) { setCreateError(`Invalid URL: ${invalidTarget.slice(0, 30)}...`); return; }
 
                 const selApi = apis.find((api) => api.id === selectedApiId) ?? null;
-                if (!selApi) { setCreateError("Select an API."); return; }
-                if (!selApi.url.trim()) { setCreateError("API URL is required."); return; }
-                if (!isValidUrl(selApi.url.trim())) { setCreateError("API URL must be valid."); return; }
-                if (!selApi.key.trim()) { setCreateError("API key is required."); return; }
-
                 const selBundle = bundles.find((bundle) => bundle.id === selectedBundleId);
                 if (!selBundle) { setCreateError("Select a valid bundle."); return; }
-                const viewsServiceId = selBundle.serviceIds.views.trim();
-                if (!viewsServiceId) { setCreateError("Bundle has no Views service."); return; }
-                const likesServiceId = selBundle.serviceIds.likes.trim();
-                const sharesServiceId = selBundle.serviceIds.shares.trim();
-                const savesServiceId = selBundle.serviceIds.saves.trim();
-                const repostsServiceId = selBundle.serviceIds.reposts?.trim();
-                if (includeLikes && !likesServiceId) { setCreateError("Bundle has no Likes service."); return; }
-                if (includeShares && !sharesServiceId) { setCreateError("Bundle has no Shares service."); return; }
-                if (includeSaves && !savesServiceId) { setCreateError("Bundle has no Saves service."); return; }
-                if (includeReposts && !repostsServiceId) { setCreateError("Bundle has no Reposts service."); return; }
-                const commentsServiceId = selBundle.serviceIds.comments?.trim();
-                if (includeComments && !commentsServiceId) { setCreateError("Bundle has no Comments service."); return; }
-
+                const enabled: ServiceType[] = ["views", ...(includeLikes ? ["likes" as const] : []), ...(includeShares ? ["shares" as const] : []), ...(includeSaves ? ["saves" as const] : []), ...(includeComments ? ["comments" as const] : []), ...(includeReposts ? ["reposts" as const] : [])];
+                const slotConfig = (type: ServiceType) => bundleSlots(selBundle, type).slice(0, 3).map(slot => ({ ...slot, panel: panelForSlot(slot) })).filter(x => x.panel?.url && x.panel?.key && x.serviceId);
+                const primaryView = slotConfig("views")[0];
+                if (!primaryView?.panel) { setCreateError("Bundle has no valid Views service."); return; }
+                for (const type of enabled) {
+                  if (!slotConfig(type).length) { setCreateError(`Bundle has no valid ${type} service.`); return; }
+                }
                 const quantity = (safePlan?.runs || []).reduce((acc, run) => acc + run.views, 0);
                 if (!Number.isFinite(quantity) || quantity <= 0) { setCreateError("Quantity must be > 0."); return; }
                 if (quantity < minViewsPerRun) { setCreateError(`Views must be at least ${minViewsPerRun}.`); return; }
-
                 const totalLikes = (safePlan?.runs || []).reduce((acc, run) => acc + run.likes, 0);
                 const totalShares = (safePlan?.runs || []).reduce((acc, run) => acc + run.shares, 0);
                 const totalSaves = (safePlan?.runs || []).reduce((acc, run) => acc + run.saves, 0);
                 const totalReposts = (safePlan?.runs || []).reduce((acc, run) => acc + (run.reposts || 0), 0);
                 const totalCommentsQty = (safePlan?.runs || []).reduce((acc, run) => acc + (run.comments || 0), 0);
-
                 if (includeLikes && totalLikes < 10) { setCreateError("Likes must be at least 10."); return; }
                 if (includeShares && totalShares < 20) { setCreateError("Shares must be at least 20."); return; }
                 if (includeSaves && totalSaves < 10) { setCreateError("Saves must be at least 10."); return; }
                 if (includeReposts && totalReposts < 10) { setCreateError("Reposts must be at least 10."); return; }
                 if (includeComments && totalCommentsQty <= 0) { setCreateError("Comments must be greater than 0."); return; }
-                if (quantity > 100000) { const proceed = window.confirm("Large mission. Continue?"); if (!proceed) return; }
-
-                const viewRuns = (safePlan?.runs || []).map((run) => ({
-                  time: run.at.toISOString(),
-                  quantity: Math.max(Math.floor(run.views), minViewsPerRun),
-                }));
-                if (!viewRuns.length || viewRuns.some((run) => !run.time || !Number.isFinite(run.quantity) || run.quantity <= 0)) {
-                  setCreateError("Invalid run schedule. Regenerate."); return;
+                if (quantity > 100000 && !window.confirm("Large mission. Continue?")) return;
+                const quantities = (safePlan?.runs || []).map(run => ({ time: run.at.toISOString(), quantity: Math.max(0, Math.floor(run.views)) }));
+                const engagementRuns: Record<ServiceType, Array<{time:string;quantity?:number;comments?:string}>> = {
+                  views: quantities,
+                  likes: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),quantity:Math.max(0,Math.floor(r.likes))})),
+                  shares: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),quantity:Math.max(0,Math.floor(r.shares))})),
+                  saves: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),quantity:Math.max(0,Math.floor(r.saves))})),
+                  reposts: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),quantity:Math.max(0,Math.floor(r.reposts||0))})),
+                  comments: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),comments:Math.max(0,Math.floor(r.comments||0)) ? (customComments.trim() || "Nice post") : ""})).filter(r=>r.comments),
+                };
+                const servicesPayload: Record<string, unknown> = {};
+                for (const type of enabled) {
+                  const slots = slotConfig(type);
+                  servicesPayload[type] = {
+                    serviceId: slots[0].serviceId,
+                    apiUrl: slots[0].panel!.url,
+                    apiKey: slots[0].panel!.key,
+                    rotations: slots.map(x=>({ serviceId:x.serviceId, apiUrl:x.panel!.url, apiKey:x.panel!.key })),
+                    runs: engagementRuns[type],
+                  };
                 }
-
-                const likesRuns = (safePlan?.runs || []).map((run) => ({ time: run.at.toISOString(), quantity: Math.max(0, Math.floor(run.likes)) }));
-                const sharesRuns = (safePlan?.runs || []).map((run) => ({ time: run.at.toISOString(), quantity: Math.max(0, Math.floor(run.shares)) }));
-                const savesRuns = (safePlan?.runs || []).map((run) => ({ time: run.at.toISOString(), quantity: Math.max(0, Math.floor(run.saves)) }));
-                const repostsRuns = (safePlan?.runs || []).map((run) => ({ time: run.at.toISOString(), quantity: Math.max(0, Math.floor(run.reposts || 0)) }));
-
-                const commentList = customComments.split("\n").map(c => c.trim()).filter(Boolean);
-                const commentsRuns = (safePlan?.runs || []).map((run) => {
-                  const required = Math.floor(run.comments || 0);
-                  if (required <= 0) return { time: run.at.toISOString(), comments: "" };
-                  let finalComments: string[] = [];
-                  if (commentList.length === 0) { finalComments = ["Nice post"]; }
-                  else if (commentList.length >= required) { finalComments = commentList.slice(0, required); }
-                  else { while (finalComments.length < required) { finalComments.push(commentList[finalComments.length % commentList.length]); } }
-                  return { time: run.at.toISOString(), comments: finalComments.join("\n") };
-                });
-                const filteredCommentsRuns = commentsRuns.filter(run => run.comments && run.comments.length > 0);
-
-                const servicesPayload: {
-                  views: { serviceId: string; runs: Array<{ time: string; quantity: number }> };
-                  likes?: { serviceId: string; runs: Array<{ time: string; quantity: number }> };
-                  shares?: { serviceId: string; runs: Array<{ time: string; quantity: number }> };
-                  saves?: { serviceId: string; runs: Array<{ time: string; quantity: number }> };
-                  reposts?: { serviceId: string; runs: Array<{ time: string; quantity: number }> };
-                  comments?: { serviceId: string; runs: Array<{ time: string; comments: string }> };
-                } = { views: { serviceId: viewsServiceId, runs: viewRuns } };
-
-                if (includeLikes) servicesPayload.likes = { serviceId: likesServiceId, runs: likesRuns };
-                if (includeShares) servicesPayload.shares = { serviceId: sharesServiceId, runs: sharesRuns };
-                if (includeSaves) servicesPayload.saves = { serviceId: savesServiceId, runs: savesRuns };
-                if (includeReposts) servicesPayload.reposts = { serviceId: repostsServiceId!, runs: repostsRuns };
-                if (includeComments && filteredCommentsRuns.length > 0) {
-                  servicesPayload.comments = { serviceId: commentsServiceId!, runs: filteredCommentsRuns };
-                }
-
                 setIsCreatingOrder(true);
                 setCreateSuccess(`Processing ${targets.length} mission${targets.length > 1 ? "s" : ""}...`);
 
@@ -997,8 +964,8 @@ export function NewOrderPage({
                     try {
                       const result = await createSmmOrder({
                         name: orderName.trim() || undefined,
-                        apiUrl: selApi.url,
-                        apiKey: selApi.key,
+                        apiUrl: primaryView.panel.url,
+                        apiKey: primaryView.panel.key,
                         link: trimmedUrl,
                         services: servicesPayload,
                       });
@@ -1018,8 +985,8 @@ export function NewOrderPage({
                         patternName: safePlan.patternName,
                         runs: safePlan?.runs || [],
                         engagement: { likes: totalLikes, shares: totalShares, saves: totalSaves, comments: totalCommentsQty, reposts: totalReposts },
-                        serviceId: viewsServiceId,
-                        selectedAPI: selApi.name,
+                        serviceId: primaryView.serviceId,
+                        selectedAPI: primaryView.panel?.name || selApi?.name || null,
                         selectedBundle: selBundle.name,
                         status: result.status === "completed" ? "completed" : "running",
                         completedRuns: typeof result.completedRuns === "number" ? result.completedRuns : 0,
@@ -1047,8 +1014,8 @@ export function NewOrderPage({
                         patternName: safePlan.patternName,
                         runs: safePlan?.runs || [],
                         engagement: { likes: totalLikes, shares: totalShares, saves: totalSaves, comments: totalCommentsQty, reposts: totalReposts },
-                        serviceId: viewsServiceId,
-                        selectedAPI: selApi.name,
+                        serviceId: primaryView.serviceId,
+                        selectedAPI: primaryView.panel?.name || selApi?.name || null,
                         selectedBundle: selBundle.name,
                         status: "failed",
                         completedRuns: 0,
