@@ -1,26 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { supabase } from "../lib/supabase";
-import { getBrowserFingerprint } from "../lib/fingerprint";
 import { Button, Input, InfoBanner } from "../components/ui";
 
 const STORAGE_KEY = "truesmm-access-key";
+const BACKEND_URL = ((import.meta.env.VITE_BACKEND_URL as string | undefined)?.trim() || "https://truesmm-backend.onrender.com").replace(/\/$/, "");
 
 interface LoginPageProps {
   onAuthenticated: () => void;
 }
 
-function formatRemaining(ms: number): string {
-  if (ms <= 0) return "expired";
-  const s = Math.floor(ms / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ${s % 60}s`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ${m % 60}m`;
-  const d = Math.floor(h / 24);
-  return `${d}d ${h % 24}h`;
-}
 
 export function LoginPage({ onAuthenticated }: LoginPageProps) {
   const [keyInput, setKeyInput] = useState("");
@@ -29,139 +17,28 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
   const [success, setSuccess] = useState(false);
   const [remainingMsg, setRemainingMsg] = useState("");
 
-  useEffect(() => {
-    const savedKey = localStorage.getItem(STORAGE_KEY);
-    if (!savedKey || !savedKey.trim()) return;
-
-    (async () => {
-      try {
-        const { data, error: fetchError } = await supabase
-          .from("access_keys")
-          .select("*")
-          .eq("key", savedKey)
-          .single();
-
-        if (fetchError || !data || !data.is_active) {
-          localStorage.removeItem(STORAGE_KEY);
-          return;
-        }
-
-        if (data.expires_at) {
-          const expMs = new Date(data.expires_at).getTime();
-          if (Date.now() >= expMs) {
-            localStorage.removeItem(STORAGE_KEY);
-            setError(
-              "Your access key has expired. Contact your administrator for a new one."
-            );
-            return;
-          }
-        }
-
-        onAuthenticated();
-      } catch {
-        onAuthenticated();
-      }
-    })();
-  }, [onAuthenticated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedKey = keyInput.trim().toUpperCase();
-
-    if (!trimmedKey) {
-      setError("Enter your access key.");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
+    if (!trimmedKey) { setError("Enter your access key."); return; }
+    setLoading(true); setError("");
     try {
-      const fingerprint = await getBrowserFingerprint();
-
-      const { data, error: fetchError } = await supabase
-        .from("access_keys")
-        .select("*")
-        .eq("key", trimmedKey)
-        .single();
-
-      if (fetchError || !data) {
-        setError("Invalid access key. Contact your administrator.");
-        setLoading(false);
-        return;
-      }
-
-      if (!data.is_active) {
-        setError("This key has been revoked. Contact your administrator.");
-        setLoading(false);
-        return;
-      }
-
-      if (data.fingerprint === null) {
-        const activatedAt = new Date();
-        const updatePayload: Record<string, unknown> = {
-          fingerprint,
-          activated_at: activatedAt.toISOString(),
-        };
-
-        if (
-          typeof data.duration_seconds === "number" &&
-          data.duration_seconds > 0
-        ) {
-          const expiresAt = new Date(
-            activatedAt.getTime() + data.duration_seconds * 1000
-          );
-          updatePayload.expires_at = expiresAt.toISOString();
-        }
-
-        const { error: updateError } = await supabase
-          .from("access_keys")
-          .update(updatePayload)
-          .eq("key", trimmedKey);
-
-        if (updateError) {
-          setError("Activation failed. Try again.");
-          setLoading(false);
-          return;
-        }
-
-        localStorage.setItem(STORAGE_KEY, trimmedKey);
-
-        if (updatePayload.expires_at) {
-          const ms =
-            new Date(updatePayload.expires_at as string).getTime() - Date.now();
-          setRemainingMsg(`Valid for ${formatRemaining(ms)}`);
-        } else {
-          setRemainingMsg("Lifetime access");
-        }
-
-        setSuccess(true);
-        setTimeout(() => onAuthenticated(), 1200);
-        return;
-      }
-
-      if (data.expires_at) {
-        const expMs = new Date(data.expires_at).getTime();
-        if (Date.now() >= expMs) {
-          setError(
-            "This key has expired. Contact your administrator for a new one."
-          );
-          setLoading(false);
-          return;
-        }
-      }
-
-      setError(
-        "This key has already been used. Each key is single-use only. If this is your browser, access should be automatic."
-      );
-      setLoading(false);
+      const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ key: trimmedKey }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Invalid access key.");
+      setSuccess(true);
+      setRemainingMsg(payload.lifetime ? "Lifetime access" : "Access granted");
+      setTimeout(() => onAuthenticated(), 700);
     } catch (err) {
-      console.error("Login error:", err);
-      setError("Something went wrong. Try again.");
-      setLoading(false);
-    }
+      setError(err instanceof Error ? err.message : "Login failed. Try again.");
+    } finally { setLoading(false); }
   };
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-indigo-50 via-white to-violet-50">
       {/* Decorative background */}
