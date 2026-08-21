@@ -627,6 +627,7 @@ export default function App() {
             id: `bundle-${Date.now()}`,
             name: bundle.name,
             rotations: bundle.rotations,
+            enforceServiceMinimums: bundle.enforceServiceMinimums,
             serviceIds: { views: bundle.rotations.views[0]?.serviceId || "", likes: bundle.rotations.likes[0]?.serviceId || "", shares: bundle.rotations.shares[0]?.serviceId || "", saves: bundle.rotations.saves[0]?.serviceId || "", comments: bundle.rotations.comments[0]?.serviceId || "", reposts: bundle.rotations.reposts[0]?.serviceId || "" },
           }];
           persistBundles(next);
@@ -636,6 +637,7 @@ export default function App() {
             ...item,
             name: bundle.name,
             rotations: bundle.rotations,
+            enforceServiceMinimums: bundle.enforceServiceMinimums,
             serviceIds: { views: bundle.rotations.views[0]?.serviceId || "", likes: bundle.rotations.likes[0]?.serviceId || "", shares: bundle.rotations.shares[0]?.serviceId || "", saves: bundle.rotations.saves[0]?.serviceId || "", comments: bundle.rotations.comments[0]?.serviceId || "", reposts: bundle.rotations.reposts[0]?.serviceId || "" },
           } : item);
           persistBundles(next);
