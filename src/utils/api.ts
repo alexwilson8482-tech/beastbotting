@@ -3,14 +3,17 @@ import type { BackendRunInfo } from "../types/order";
 
 interface CreateOrderPayload {
   name?: string;
-  apiUrl: string;
-  apiKey: string;
+  apiUrl?: string;
+  apiKey?: string;
   link: string;
   services: Partial<
     Record<
       "views" | "likes" | "shares" | "saves" | "comments" | "reposts",
       {
         serviceId: string;
+        apiUrl?: string;
+        apiKey?: string;
+        rotations?: Array<{ apiUrl: string; apiKey: string; serviceId: string }>;
         runs: Array<{
           time: string;
           quantity?: number;
