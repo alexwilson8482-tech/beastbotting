@@ -881,6 +881,14 @@ export function NewOrderPage({
                 if (!selBundle) { setCreateError("Select a valid bundle."); return; }
                 const enabled: ServiceType[] = ["views", ...(includeLikes ? ["likes" as const] : []), ...(includeShares ? ["shares" as const] : []), ...(includeSaves ? ["saves" as const] : []), ...(includeComments ? ["comments" as const] : []), ...(includeReposts ? ["reposts" as const] : [])];
                 const slotConfig = (type: ServiceType) => bundleSlots(selBundle, type).slice(0, 3).map(slot => ({ ...slot, panel: panelForSlot(slot) })).filter(x => x.panel?.url && x.panel?.key && x.serviceId);
+                const minimumForRun = (type: ServiceType, runIndex: number, slots: ReturnType<typeof slotConfig>) => {
+                  if (!selBundle.enforceServiceMinimums) return 0;
+                  const slot = slots[runIndex % slots.length];
+                  const service = slot?.panel?.services.find(item => String(item.id) === String(slot.serviceId));
+                  return Math.max(0, Math.floor(Number(service?.min) || 0));
+                };
+                const adjustedQuantity = (type: ServiceType, runIndex: number, quantity: number, slots: ReturnType<typeof slotConfig>) =>
+                  Math.max(Math.floor(quantity || 0), minimumForRun(type, runIndex, slots));
                 const primaryView = slotConfig("views")[0];
                 if (!primaryView?.panel) { setCreateError("Bundle has no valid Views service."); return; }
                 for (const type of enabled) {
@@ -900,14 +908,21 @@ export function NewOrderPage({
                 if (includeReposts && totalReposts < 10) { setCreateError("Reposts must be at least 10."); return; }
                 if (includeComments && totalCommentsQty <= 0) { setCreateError("Comments must be greater than 0."); return; }
                 if (quantity > 100000 && !window.confirm("Large mission. Continue?")) return;
-                const quantities = (safePlan?.runs || []).map(run => ({ time: run.at.toISOString(), quantity: Math.max(0, Math.floor(run.views)) }));
+                const runs = safePlan?.runs || [];
+                const quantities = runs.map((run, i) => ({ time: run.at.toISOString(), quantity: Math.max(Math.floor(run.views), minViewsPerRun, adjustedQuantity("views", i, run.views, slotConfig("views"))) }));
                 const engagementRuns: Record<ServiceType, Array<{time:string;quantity?:number;comments?:string}>> = {
                   views: quantities,
-                  likes: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),quantity:Math.max(0,Math.floor(r.likes))})),
-                  shares: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),quantity:Math.max(0,Math.floor(r.shares))})),
-                  saves: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),quantity:Math.max(0,Math.floor(r.saves))})),
-                  reposts: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),quantity:Math.max(0,Math.floor(r.reposts||0))})),
-                  comments: (safePlan?.runs || []).map(r=>({time:r.at.toISOString(),comments:Math.max(0,Math.floor(r.comments||0)) ? (customComments.trim() || "Nice post") : ""})).filter(r=>r.comments),
+                  likes: runs.map((r,i)=>({time:r.at.toISOString(),quantity:adjustedQuantity("likes", i, r.likes, slotConfig("likes"))})),
+                  shares: runs.map((r,i)=>({time:r.at.toISOString(),quantity:adjustedQuantity("shares", i, r.shares, slotConfig("shares"))})),
+                  saves: runs.map((r,i)=>({time:r.at.toISOString(),quantity:adjustedQuantity("saves", i, r.saves, slotConfig("saves"))})),
+                  reposts: runs.map((r,i)=>({time:r.at.toISOString(),quantity:adjustedQuantity("reposts", i, r.reposts||0, slotConfig("reposts"))})),
+                  comments: runs.map((r,i)=>{
+                    const required = adjustedQuantity("comments", i, r.comments || 0, slotConfig("comments"));
+                    if (required <= 0) return { time:r.at.toISOString(), comments:"" };
+                    const source = customComments.split("\n").map(x=>x.trim()).filter(Boolean);
+                    const lines = source.length ? source : ["Nice post"];
+                    return { time:r.at.toISOString(), comments:Array.from({length:required}, (_,n)=>lines[n % lines.length]).join("\n") };
+                  }).filter(r=>r.comments),
                 };
                 const servicesPayload: Record<string, unknown> = {};
                 for (const type of enabled) {
