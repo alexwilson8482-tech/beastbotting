@@ -731,6 +731,7 @@ export default function App() {
               onClick={() => {
                 if (window.confirm("Sign out of TRUESMM?")) {
                   localStorage.removeItem("truesmm-access-key");
+                  localStorage.removeItem("truesmm-lifetime-access");
                   window.location.reload();
                 }
               }}
