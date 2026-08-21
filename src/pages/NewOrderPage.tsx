@@ -134,7 +134,7 @@ export function NewOrderPage({
   const [postUrl, setPostUrl] = useState(prefillOrder?.link ?? "");
   const [bulkLinks, setBulkLinks] = useState("");
   const [totalViews, setTotalViews] = useState(prefillOrder?.totalViews ?? 50000);
-  const [minViewsPerRun, setMinViewsPerRun] = useState(10);
+  const [minViewsPerRun, setMinViewsPerRun] = useState(100);
   const [selectedApiId, setSelectedApiId] = useState(prefillApiId);
   const [selectedBundleId, setSelectedBundleId] = useState(prefillBundleId);
   const [startDelayHours, setStartDelayHours] = useState(prefillOrder?.startDelayHours ?? 0);
@@ -164,7 +164,7 @@ export function NewOrderPage({
         if (response.ok) {
           const data = await response.json();
           if (data.minViewsPerRun) {
-            setMinViewsPerRun(data.minViewsPerRun);
+            setMinViewsPerRun(Math.max(100, Math.floor(Number(data.minViewsPerRun) || 100)));
           }
         }
       } catch (error) {
@@ -286,7 +286,7 @@ export function NewOrderPage({
   };
 
   const handleMinViewsChange = (value: number) => {
-    const newValue = Math.max(1, Math.floor(value));
+    const newValue = Math.max(100, Math.floor(value));
     setMinViewsPerRun(newValue);
     setUseClonedPlan(false);
     setSeed((current) => current + 1);
