@@ -563,33 +563,19 @@ export function NewOrderPage({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Default API panel (legacy bundles)</label>
-                <select
-                  value={selectedApiId}
-                  onChange={(e) => { setSelectedApiId(e.target.value); setSelectedBundleId(""); }}
-                  className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none transition"
-                >
-                  <option value="">Select API…</option>
-                  {apis.map((api) => (
-                    <option key={api.id} value={api.id}>{api.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Bundle</label>
-                <select
-                  value={selectedBundleId}
-                  onChange={(e) => setSelectedBundleId(e.target.value)}
-                  className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none transition"
-                >
-                  <option value="">Select bundle…</option>
-                  {bundleOptions.map((bundle) => (
-                    <option key={bundle.id} value={bundle.id}>{bundle.name}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">Bundle</label>
+              <select
+                value={selectedBundleId}
+                onChange={(e) => setSelectedBundleId(e.target.value)}
+                className="w-full rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none transition"
+              >
+                <option value="">Select bundle…</option>
+                {bundleOptions.map((bundle) => (
+                  <option key={bundle.id} value={bundle.id}>{bundle.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-[10px] text-slate-500">Each service and rotation slot uses the panel selected in the bundle.</p>
             </div>
           </div>
         </Card>
