@@ -113,7 +113,7 @@ export async function fetchServices(apiUrl: string, apiKey: string): Promise<Api
 
   let response: Response;
   try {
-    response = await fetch(endpoint, {
+    response = await fetch(endpoint, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ apiUrl, apiKey }),
@@ -185,7 +185,7 @@ export async function createSmmOrder(payload: CreateOrderPayload): Promise<Creat
 
   let response: Response;
   try {
-    response = await fetch(endpoint, {
+    response = await fetch(endpoint, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -280,7 +280,7 @@ export async function updateOrderControl(payload: {
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(endpoint, { credentials: "include",
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -331,7 +331,7 @@ export async function fetchOrderRuns(schedulerOrderId: string): Promise<FetchOrd
   const endpoint = `${BACKEND_BASE_URL.replace(/\/$/, "")}/api/order/runs/${schedulerOrderId}`;
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(endpoint, { credentials: "include",
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -356,7 +356,7 @@ export async function fetchOrderStatus(schedulerOrderId: string): Promise<OrderS
   const endpoint = `${BACKEND_BASE_URL.replace(/\/$/, "")}/api/order/status/${schedulerOrderId}`;
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(endpoint, { credentials: "include",
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -388,7 +388,7 @@ export async function fetchAllOrdersStatus(): Promise<{
   const endpoint = `${BACKEND_BASE_URL.replace(/\/$/, "")}/api/orders/status`;
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(endpoint, { credentials: "include",
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -408,7 +408,7 @@ export async function fetchMinViewsSetting(): Promise<number> {
   const endpoint = `${BACKEND_BASE_URL.replace(/\/$/, "")}/api/settings/min-views`;
 
   try {
-    const response = await fetch(endpoint);
+    const response = await fetch(endpoint, { credentials: "include" });
     const data = await response.json();
     return data.minViewsPerRun || 10;
   } catch (error) {
@@ -423,7 +423,7 @@ export async function updateMinViewsSetting(
   const endpoint = `${BACKEND_BASE_URL.replace(/\/$/, "")}/api/settings/min-views`;
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(endpoint, { credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ minViewsPerRun }),
@@ -483,7 +483,7 @@ export async function checkProviderOrderStatus(schedulerOrderId: string): Promis
   const endpoint = `${BACKEND_BASE_URL.replace(/\/$/, "")}/api/order/provider-status/${schedulerOrderId}`;
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(endpoint, { credentials: "include",
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
