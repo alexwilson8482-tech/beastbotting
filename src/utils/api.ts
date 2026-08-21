@@ -493,4 +493,3 @@ export async function checkProviderOrderStatus(schedulerOrderId: string): Promis
     throw error;
   }
 }
-
